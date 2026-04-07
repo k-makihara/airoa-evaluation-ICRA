@@ -1,25 +1,59 @@
-FROM nvidia/cuda:12.2.2-cudnn8-runtime-ubuntu22.04
-COPY --from=ghcr.io/astral-sh/uv:0.5.1 /uv /uvx /bin/
+FROM nvidia/cuda:12.1.1-devel-ubuntu22.04
 
-ENV DEBIAN_FRONTEND=noninteractive
-WORKDIR /workspace
+ENV DEBIAN_FRONTEND=noninteractive \
+    TZ=UTC \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=on \
+    VIRTUAL_ENV=/workspace/.venv \
+    PATH="/workspace/.venv/bin:${PATH}" \
+    PYTHONPATH="/workspace"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git git-lfs build-essential clang ca-certificates curl && \
-    rm -rf /var/lib/apt/lists/*
+    ca-certificates \
+    curl \
+    git \
+    git-lfs \
+    build-essential \
+    pkg-config \
+    python3 \
+    python3-dev \
+    python3-pip \
+    python3-venv \
+    libgl1 \
+    libglib2.0-0 \
+    libaom-dev \
+    cmake \
+    ninja-build \
+    iproute2 \
+    iputils-ping \
+    net-tools \
+    dnsutils \
+ && rm -rf /var/lib/apt/lists/* \
+ && git lfs install
 
-COPY pyproject.toml uv.lock LICENSE README.md ./
-COPY packages/policy-client ./packages/policy-client
-COPY src ./src
-COPY server ./server
-COPY runtime_core ./runtime_core
+WORKDIR /workspace
 
-# Create virtual environment and install locked deps including local workspace packages.
-RUN uv venv --python 3.11 /workspace/.venv
-RUN GIT_LFS_SKIP_SMUDGE=1 uv sync --frozen --no-dev --no-install-project
-RUN uv pip install --python /workspace/.venv/bin/python pytest
+COPY packages/policy-client /workspace/packages/policy-client
+COPY src/Isaac-GR00T /workspace/src/Isaac-GR00T
+COPY runtime_core /workspace/runtime_core
+COPY server /workspace/server
 
-ENV PATH="/workspace/.venv/bin:${PATH}"
-ENV PYTHONPATH="/workspace:/workspace/src:/workspace/packages/policy-client/src"
+RUN python3 -m venv /workspace/.venv \
+ && /workspace/.venv/bin/pip install --upgrade pip setuptools wheel \
+ && /workspace/.venv/bin/pip install -e /workspace/packages/policy-client \
+ && /workspace/.venv/bin/pip install -e /workspace/src/Isaac-GR00T[base] \
+ && (/workspace/.venv/bin/pip uninstall -y transformer-engine || true)
+
+RUN /workspace/.venv/bin/pip install --force-reinstall \
+    --index-url https://download.pytorch.org/whl/cu121 \
+    torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 \
+ && /workspace/.venv/bin/pip install --force-reinstall numpy==1.26.4 \
+ && (/workspace/.venv/bin/pip uninstall -y opencv-python opencv-python-headless || true) \
+ && (/workspace/.venv/bin/pip uninstall -y flash-attn flash_attn || true) \
+ && (rm -rf /usr/local/lib/python3.10/dist-packages/cv2 || true) \
+ && /workspace/.venv/bin/pip install opencv-python==4.8.0.74 \
+ && /workspace/.venv/bin/pip install "accelerate>=0.26.0"
+
+RUN chmod +x /workspace/server/entrypoint.sh
 
 ENTRYPOINT ["/workspace/server/entrypoint.sh"]

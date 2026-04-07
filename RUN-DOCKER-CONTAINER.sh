@@ -2,6 +2,17 @@
 set -euo pipefail
 
 MODE="${1:-up}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+tmp_compose_file=""
+
+cleanup_tmp_compose() {
+  if [[ -n "${tmp_compose_file:-}" && -f "${tmp_compose_file}" ]]; then
+    rm -f "${tmp_compose_file}"
+  fi
+}
+
+trap cleanup_tmp_compose EXIT
 
 is_true() {
   case "${1:-}" in
@@ -126,12 +137,56 @@ print_env_summary() {
   echo "[INFO] ROS_MASTER_URI=${ROS_MASTER_URI:-}"
   echo "[INFO] ROS_IP=${ROS_IP:-}"
   echo "[INFO] TEST_MODE=${TEST_MODE:-true}"
+  echo "[INFO] USE_GPU=${USE_GPU:-auto}"
   echo "[INFO] POLICY_CHECKPOINT_PATH=${POLICY_CHECKPOINT_PATH:-}"
   echo "[INFO] POLICY_CACHE_DIR=${POLICY_CACHE_DIR:-}"
   echo "[INFO] HF_CACHE_DIR=${HF_CACHE_DIR:-}"
   echo "[INFO] ROSBAG_DIR=${ROSBAG_DIR:-}"
   echo "[INFO] POLICY_SERVER_HOST=${POLICY_SERVER_HOST:-127.0.0.1}"
   echo "[INFO] POLICY_SERVER_PORT=${POLICY_SERVER_PORT:-8000}"
+}
+
+make_cpu_compose_file() {
+  tmp_compose_file="$(mktemp "${SCRIPT_DIR}/.tmp-compose-no-gpu.XXXXXX.yml")"
+  awk '!/^[[:space:]]*gpus:[[:space:]]*all[[:space:]]*$/' "${SCRIPT_DIR}/docker-compose.yml" > "${tmp_compose_file}"
+  echo "${tmp_compose_file}"
+}
+
+compose_up_with_optional_gpu() {
+  local use_gpu="${USE_GPU:-auto}"
+
+  if is_true "${use_gpu}"; then
+    docker compose --project-directory "${SCRIPT_DIR}" up --build -d
+    return
+  fi
+
+  if [[ "${use_gpu}" == "false" || "${use_gpu}" == "FALSE" || "${use_gpu}" == "False" || "${use_gpu}" == "0" || "${use_gpu}" == "no" || "${use_gpu}" == "NO" ]]; then
+    local cpu_compose
+    cpu_compose="$(make_cpu_compose_file)"
+    echo "[INFO] USE_GPU=${use_gpu}: starting containers without docker GPU requests."
+    docker compose --project-directory "${SCRIPT_DIR}" -f "${cpu_compose}" up --build -d
+    return
+  fi
+
+  local log_file
+  log_file="$(mktemp /tmp/airoa-compose-up.XXXXXX.log)"
+  if docker compose --project-directory "${SCRIPT_DIR}" up --build -d > >(tee "${log_file}") 2> >(tee -a "${log_file}" >&2); then
+    rm -f "${log_file}"
+    return
+  fi
+
+  if grep -q "failed to discover GPU vendor from CDI" "${log_file}"; then
+    echo "[WARN] Docker GPU runtime is not available on this host. Falling back to CPU/no-GPU mode."
+    local cpu_compose
+    cpu_compose="$(make_cpu_compose_file)"
+    docker compose --project-directory "${SCRIPT_DIR}" -f "${cpu_compose}" up --build -d
+    rm -f "${log_file}"
+    return
+  fi
+
+  echo "[ERROR] docker compose up failed. See log above."
+  rm -f "${log_file}"
+  return 1
 }
 
 cmd_up() {
@@ -147,7 +202,7 @@ cmd_up() {
   fi
   ensure_paths
   print_env_summary
-  docker compose up --build -d
+  compose_up_with_optional_gpu
   echo "[INFO] Containers started."
   echo "[INFO] Next step: ./RUN-DOCKER-CONTAINER.sh shell"
 }

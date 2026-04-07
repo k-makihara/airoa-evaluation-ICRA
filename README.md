@@ -35,7 +35,7 @@ Verified environment (2026-02-20):
 
 1. Create a feature branch from the prepared base branch.
 2. Add your model repository under `src/`.
-3. Update `server/serve_hsr_policy_ws.py` (currently the OpenPI version) and server-side dependencies for your model runtime.
+3. Update `server/serve_hsr_policy_ws.py` and server-side dependencies for your model runtime.
 4. Add an adapter in `src/` or `server/`.
 
 Adapter definition:
@@ -55,11 +55,16 @@ export POLICY_CHECKPOINT_PATH=/abs/path/to/checkpoint_dir
 
 Set policy-specific variables only when your server implementation requires them.
 
-OpenPI example:
+GR00T example:
 
 ```bash
-export POLICY_CONFIG_NAME=<openpi_config_name>
-export POLICY_PYTORCH_DEVICE=cuda
+export GR00T_DATA_CONFIG=hsr_v2
+export GR00T_EMBODIMENT_TAG=new_embodiment
+export GR00T_DEVICE=cuda
+export GR00T_ADOPTED_ACTION_CHUNKS=32
+export GR00T_DENOISING_STEPS=4
+export GR00T_CONTROL_FREQ=20
+export GR00T_MAX_RTC_OVERLAP_FACTOR=0.75
 ```
 
 ## 6. Test Flow
