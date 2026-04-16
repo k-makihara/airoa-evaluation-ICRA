@@ -45,8 +45,8 @@ RUN python3 -m venv /workspace/.venv \
  && (/workspace/.venv/bin/pip uninstall -y transformer-engine || true)
 
 RUN /workspace/.venv/bin/pip install --force-reinstall \
-    --index-url https://download.pytorch.org/whl/cu128 \
-    torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0 \
+    --index-url https://download.pytorch.org/whl/cu121 \
+    torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 \
  && /workspace/.venv/bin/pip install --force-reinstall numpy==1.26.4 \
  && (/workspace/.venv/bin/pip uninstall -y opencv-python opencv-python-headless || true) \
  && (/workspace/.venv/bin/pip uninstall -y flash-attn flash_attn || true) \

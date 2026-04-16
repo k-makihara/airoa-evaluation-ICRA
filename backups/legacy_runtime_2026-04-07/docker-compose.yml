@@ -1,0 +1,50 @@
+services:
+  policy_server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: airoa_policy_server
+    network_mode: host
+    gpus: all
+    environment:
+      POLICY_SERVER_HOST: "0.0.0.0"
+      POLICY_SERVER_PORT: ${POLICY_SERVER_PORT:-8000}
+      POLICY_CHECKPOINT_DIR: /policy_checkpoint
+      POLICY_DATA_HOME: /policy_assets
+      HF_HOME: /policy_hf_cache
+    volumes:
+      - ${POLICY_CHECKPOINT_PATH:-./.docker_cache/policy_checkpoint}:/policy_checkpoint:ro
+      - ${POLICY_CACHE_DIR:-./.docker_cache/policy_cache}:/policy_assets
+      - ${HF_CACHE_DIR:-./.docker_cache/hf}:/policy_hf_cache
+    restart: unless-stopped
+
+  hsr_client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    container_name: airoa_hsr_client
+    network_mode: host
+    privileged: true
+    gpus: all
+    depends_on:
+      - policy_server
+    environment:
+      DISPLAY: ${DISPLAY:-:0}
+      QT_X11_NO_MITSHM: "1"
+      ROS_MASTER_URI: ${ROS_MASTER_URI:-http://127.0.0.1:11311}
+      ROS_IP: ${ROS_IP:-127.0.0.1}
+      POLICY_SERVER_HOST: ${POLICY_SERVER_HOST:-127.0.0.1}
+      POLICY_SERVER_PORT: ${POLICY_SERVER_PORT:-8000}
+      POLICY_SERVER_API_KEY: ${POLICY_SERVER_API_KEY:-}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /dev:/dev
+      - ${ROSBAG_DIR:-./datasets/rosbags}:/root/datasets/rosbags
+    command: >-
+      bash -lc "
+      source /opt/ros/noetic/setup.bash &&
+      source /root/catkin_ws/devel/setup.bash &&
+      echo '[INFO] Client container is ready. Run roslaunch manually:' &&
+      echo 'roslaunch hsr_policy_client hsr_policy_client.launch policy_server_host:=${POLICY_SERVER_HOST:-127.0.0.1} policy_server_port:=${POLICY_SERVER_PORT:-8000} policy_server_api_key:=${POLICY_SERVER_API_KEY:-}' &&
+      sleep infinity
+      "
