@@ -2,6 +2,7 @@
 
 Place your model implementation under this directory.
 
+ckpt's path:""
 ```
 cd /path/to/airoa-evaluation-ICRA
 export POLICY_CHECKPOINT_PATH=/path/to/ckpt
