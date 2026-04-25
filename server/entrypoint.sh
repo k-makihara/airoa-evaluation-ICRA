@@ -13,31 +13,31 @@ ARGS=(
 )
 
 if [[ -n "${GR00T_DATA_CONFIG:-}" ]]; then
-  ARGS+=("--data-config" "${GR00T_DATA_CONFIG}")
+  ARGS+=("--data-config" "hsr_v2")
 fi
 
 if [[ -n "${GR00T_EMBODIMENT_TAG:-}" ]]; then
-  ARGS+=("--embodiment-tag" "${GR00T_EMBODIMENT_TAG}")
+  ARGS+=("--embodiment-tag" "new_embodiment")
 fi
 
 if [[ -n "${GR00T_DEVICE:-}" ]]; then
-  ARGS+=("--device" "${GR00T_DEVICE}")
+  ARGS+=("--device" "cuda")
 fi
 
 if [[ -n "${GR00T_ADOPTED_ACTION_CHUNKS:-}" ]]; then
-  ARGS+=("--adopted-action-chunks" "${GR00T_ADOPTED_ACTION_CHUNKS}")
+  ARGS+=("--adopted-action-chunks" "32")
 fi
 
 if [[ -n "${GR00T_CONTROL_FREQ:-}" ]]; then
-  ARGS+=("--control-freq" "${GR00T_CONTROL_FREQ}")
+  ARGS+=("--control-freq" "20")
 fi
 
 if [[ -n "${GR00T_DENOISING_STEPS:-}" ]]; then
-  ARGS+=("--denoising-steps" "${GR00T_DENOISING_STEPS}")
+  ARGS+=("--denoising-steps" "4")
 fi
 
 if [[ -n "${GR00T_MAX_RTC_OVERLAP_FACTOR:-}" ]]; then
-  ARGS+=("--max-rtc-overlap-factor" "${GR00T_MAX_RTC_OVERLAP_FACTOR}")
+  ARGS+=("--max-rtc-overlap-factor" "0.75")
 fi
 
 exec /workspace/.venv/bin/python /workspace/server/serve_hsr_policy_ws.py "${ARGS[@]}"
